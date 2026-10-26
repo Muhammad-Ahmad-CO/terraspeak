@@ -11,7 +11,8 @@ class TerraSpeakApp extends StatefulWidget {
   State<TerraSpeakApp> createState() => _TerraSpeakAppState();
 }
 
-class _TerraSpeakAppState extends State<TerraSpeakApp> {
+class _TerraSpeakAppState extends State<TerraSpeakApp>
+    with SingleTickerProviderStateMixin {
   String lang = 'en';
   String area = 'Hyderabad';
   String crop = 'Wheat';
@@ -24,10 +25,24 @@ class _TerraSpeakAppState extends State<TerraSpeakApp> {
   String agentCrop = 'Wheat';
   final List<String> agentFarmers = [];
   final TextEditingController agentController = TextEditingController();
+  late final ScrollController scrollController;
+  late final AnimationController heroController;
+
+  @override
+  void initState() {
+    super.initState();
+    scrollController = ScrollController();
+    heroController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
 
   @override
   void dispose() {
     agentController.dispose();
+    scrollController.dispose();
+    heroController.dispose();
     super.dispose();
   }
 
@@ -192,11 +207,20 @@ class _TerraSpeakAppState extends State<TerraSpeakApp> {
           ],
         ),
         body: SingleChildScrollView(
+          controller: scrollController,
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
+              AnimatedBuilder(
+                animation: heroController,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(0, 6 * (1 - heroController.value * 2).abs() - 3),
+                    child: child,
+                  );
+                },
+                child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
@@ -234,6 +258,7 @@ class _TerraSpeakAppState extends State<TerraSpeakApp> {
                     ),
                   ],
                 ),
+              ),
               ),
               const SizedBox(height: 16),
               _card(
@@ -490,17 +515,20 @@ class _TerraSpeakAppState extends State<TerraSpeakApp> {
   }
 
   Widget _card({required String title, required List<Widget> children}) {
-    return Container(
+    return _RevealCard(
+      controller: scrollController,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFC9A227), width: 1),
         boxShadow: const [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 6),
+            color: Colors.black26,
+            blurRadius: 20,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -512,11 +540,59 @@ class _TerraSpeakAppState extends State<TerraSpeakApp> {
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
+              color: Color(0xFF1B5E20),
             ),
           ),
           const SizedBox(height: 12),
           ...children,
         ],
+      ),
+    ),
+  );
+  }
+}
+
+class _RevealCard extends StatefulWidget {
+  final ScrollController controller;
+  final Widget child;
+  const _RevealCard({required this.controller, required this.child});
+  @override
+  State<_RevealCard> createState() => _RevealCardState();
+}
+
+class _RevealCardState extends State<_RevealCard> {
+  bool visible = false;
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_check);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+  }
+  @override
+  void dispose() {
+    widget.controller.removeListener(_check);
+    super.dispose();
+  }
+  void _check() {
+    if (!mounted || visible) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final dy = box.localToGlobal(Offset.zero).dy;
+    final height = MediaQuery.of(context).size.height;
+    if (dy < height && dy + box.size.height > 0) {
+      setState(() => visible = true);
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: visible ? 1 : 0,
+      duration: const Duration(milliseconds: 600),
+      child: AnimatedSlide(
+        offset: visible ? Offset.zero : const Offset(0, 0.08),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOut,
+        child: widget.child,
       ),
     );
   }
@@ -570,7 +646,7 @@ const Map<String, Map<String, String>> _texts = {
     'guidance': 'Get Guidance',
     'safety': 'Safety: this is general guidance only. Read the bottle label and confirm with your local agriculture officer before any spray or dose.',
     'agentNote': 'A village agent can help 15 to 20 farmers enter their details.',
-    'footer': 'TerraSpeak v1.2 - Mandi demo only, advice is general guidance.',
+    'footer': 'TerraSpeak v1.3 - Mandi demo only, advice is general guidance.',
   },
   'ur': {
     'title': 'TerraSpeak',
@@ -588,7 +664,7 @@ const Map<String, Map<String, String>> _texts = {
     'guidance': 'Mashwara Lo',
     'safety': 'Hifazat: ye sirf aam mashwara hai. Koi spray ya miqdar se pehle bottle ka label parho aur maqami agriculture officer se confirm karo.',
     'agentNote': 'Gaon agent 15 se 20 kisano ki madad kar sakta hai.',
-    'footer': 'TerraSpeak v1.2 - Mandi sirf demo hai, mashwara aam rehnumai hai.',
+    'footer': 'TerraSpeak v1.3 - Mandi sirf demo hai, mashwara aam rehnumai hai.',
   },
   'sd': {
     'title': 'TerraSpeak',
